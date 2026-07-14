@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstring>
 #include <fcntl.h>
+#include <fstream>
 #include <stdexcept>
 #include <sys/stat.h>
 #include <sys/types.h>

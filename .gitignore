@@ -1,0 +1,11 @@
+# WAL Test Binaries
+wal_test_runner
+wal_test
+wal_test.exe
+wal_test.dSYM/
+*.o
+*.obj
+
+# Temporary WAL Data Files (created during test runs)
+*.wal
+*.log

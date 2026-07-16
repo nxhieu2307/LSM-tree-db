@@ -8,13 +8,20 @@
 std::string escape_string_for_print(const std::string &s) {
   std::string out;
   for (char c : s) {
-    if (c == '\n') out += "\\n";
-    else if (c == '\r') out += "\\r";
-    else if (c == '\t') out += "\\t";
-    else if (c == '\b') out += "\\b";
-    else if (c == '\f') out += "\\f";
-    else if (c == '\\') out += "\\\\";
-    else if (c == '"') out += "\\\"";
+    if (c == '\n')
+      out += "\\n";
+    else if (c == '\r')
+      out += "\\r";
+    else if (c == '\t')
+      out += "\\t";
+    else if (c == '\b')
+      out += "\\b";
+    else if (c == '\f')
+      out += "\\f";
+    else if (c == '\\')
+      out += "\\\\";
+    else if (c == '"')
+      out += "\\\"";
     else if (static_cast<unsigned char>(c) < 32) {
       char buf[10];
       std::snprintf(buf, sizeof(buf), "\\u%02x", static_cast<unsigned char>(c));
@@ -50,7 +57,8 @@ void run_test(const std::string &test_name, void (*test_func)()) {
 // Test that we can append entries and recover them correctly
 void test_basic_append_recover() {
   const std::string filename = "test_basic_append_recover.wal";
-  std::cout << "  1. Cleaning up and opening WAL file: " << filename << std::endl;
+  std::cout << "  1. Cleaning up and opening WAL file: " << filename
+            << std::endl;
   std::remove(filename.c_str()); // Clean up any pre-existing file
 
   {
@@ -60,18 +68,21 @@ void test_basic_append_recover() {
     assert(wal.Append("PUT", "key1", "value1"));
     std::cout << "    - Appending (DELETE, key2, )" << std::endl;
     assert(wal.Append("DELETE", "key2", ""));
-    std::cout << "    - Appending (PUT, key3, value3_longer_string_to_check)" << std::endl;
+    std::cout << "    - Appending (PUT, key3, value3_longer_string_to_check)"
+              << std::endl;
     assert(wal.Append("PUT", "key3", "value3_longer_string_to_check"));
   }
 
   // Recover in a new instance
   {
-    std::cout << "  3. Closing WAL and opening new instance for recovery..." << std::endl;
+    std::cout << "  3. Closing WAL and opening new instance for recovery..."
+              << std::endl;
     lsm::WAL wal(filename);
     std::vector<lsm::LogEntry> entries;
     assert(wal.Recover(entries));
 
-    std::cout << "  4. Recovered " << entries.size() << " entries:" << std::endl;
+    std::cout << "  4. Recovered " << entries.size()
+              << " entries:" << std::endl;
     for (const auto &entry : entries) {
       print_entry(entry);
     }
@@ -92,7 +103,8 @@ void test_basic_append_recover() {
     assert(entries[2].key == "key3");
     assert(entries[2].value == "value3_longer_string_to_check");
     assert(entries[2].timestamp >= entries[1].timestamp);
-    std::cout << "  5. All recovered entries verified successfully." << std::endl;
+    std::cout << "  5. All recovered entries verified successfully."
+              << std::endl;
   }
 
   std::cout << "  6. Cleaning up WAL file." << std::endl;
@@ -102,16 +114,20 @@ void test_basic_append_recover() {
 // Test JSON escaping and unescaping logic for complex characters
 void test_json_escaping() {
   const std::string filename = "test_json_escaping.wal";
-  std::cout << "  1. Cleaning up and opening WAL file: " << filename << std::endl;
+  std::cout << "  1. Cleaning up and opening WAL file: " << filename
+            << std::endl;
   std::remove(filename.c_str());
 
   // Test values that contain quotes, slashes, backslashes, newlines, tabs, etc.
   std::string complex_key = "key\\with\\backslashes\\and\"quotes\"";
-  std::string complex_value = "value\nwith\nnewlines\tand\ttricky\bbackspaces\f\r";
+  std::string complex_value =
+      "value\nwith\nnewlines\tand\ttricky\bbackspaces\f\r";
 
   std::cout << "  2. Appending entry with complex characters:" << std::endl;
-  std::cout << "    - Key:   \"" << escape_string_for_print(complex_key) << "\"" << std::endl;
-  std::cout << "    - Value: \"" << escape_string_for_print(complex_value) << "\"" << std::endl;
+  std::cout << "    - Key:   \"" << escape_string_for_print(complex_key) << "\""
+            << std::endl;
+  std::cout << "    - Value: \"" << escape_string_for_print(complex_value)
+            << "\"" << std::endl;
 
   {
     lsm::WAL wal(filename);
@@ -119,12 +135,14 @@ void test_json_escaping() {
   }
 
   {
-    std::cout << "  3. Closing WAL and opening new instance for recovery..." << std::endl;
+    std::cout << "  3. Closing WAL and opening new instance for recovery..."
+              << std::endl;
     lsm::WAL wal(filename);
     std::vector<lsm::LogEntry> entries;
     assert(wal.Recover(entries));
 
-    std::cout << "  4. Recovered " << entries.size() << " entries:" << std::endl;
+    std::cout << "  4. Recovered " << entries.size()
+              << " entries:" << std::endl;
     for (const auto &entry : entries) {
       print_entry(entry);
     }
@@ -133,7 +151,8 @@ void test_json_escaping() {
     assert(entries[0].operation == "PUT");
     assert(entries[0].key == complex_key);
     assert(entries[0].value == complex_value);
-    std::cout << "  5. Escaped/Unescaped characters verified successfully." << std::endl;
+    std::cout << "  5. Escaped/Unescaped characters verified successfully."
+              << std::endl;
   }
 
   std::cout << "  6. Cleaning up WAL file." << std::endl;
@@ -143,15 +162,18 @@ void test_json_escaping() {
 // Test behavior with a non-existent file
 void test_nonexistent_file() {
   const std::string filename = "non_existent_file.wal";
-  std::cout << "  1. Cleaning up to ensure " << filename << " does not exist." << std::endl;
+  std::cout << "  1. Cleaning up to ensure " << filename << " does not exist."
+            << std::endl;
   std::remove(filename.c_str());
 
   std::cout << "  2. Instantiating WAL and attempting recovery..." << std::endl;
   lsm::WAL wal(filename);
   std::vector<lsm::LogEntry> entries;
-  // Recovering from a non-existent file should return true with empty entries list
+  // Recovering from a non-existent file should return true with empty entries
+  // list
   assert(wal.Recover(entries));
-  std::cout << "  3. Recover call returned true. Recovered entry count: " << entries.size() << std::endl;
+  std::cout << "  3. Recover call returned true. Recovered entry count: "
+            << entries.size() << std::endl;
   assert(entries.empty());
 
   std::cout << "  4. Cleaning up WAL file." << std::endl;

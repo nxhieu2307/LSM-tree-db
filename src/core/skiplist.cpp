@@ -1,26 +1,43 @@
 #include "skiplist.hpp"
 #include <algorithm>
+#include <new>
 
 namespace lsm {
 
+SkipList::Node* SkipList::AllocateNode(std::string key, MemTableEntry entry, int height) {
+    void* mem = ::operator new(sizeof(Node) + sizeof(Node*) * (height - 1));
+    Node* node = ::new (mem) Node(std::move(key), std::move(entry));
+    for (int i = 0; i < height; ++i) {
+        node->forward[i] = nullptr;
+    }
+    return node;
+}
+
+void SkipList::FreeNode(Node* node) {
+    if (node != nullptr) {
+        node->~Node();
+        ::operator delete(node);
+    }
+}
+
 SkipList::SkipList() 
-    : head_(new Node("", MemTableEntry{"", ValueType::kTypeValue}, kMaxHeight)),
+    : head_(AllocateNode("", MemTableEntry{"", ValueType::kTypeValue}, kMaxHeight)),
       max_height_(1),
       rng_(std::random_device{}()) {}
 
 SkipList::~SkipList() {
     Clear();
-    delete head_;
+    FreeNode(head_);
 }
 
 void SkipList::Clear() {
     Node* current = head_->forward[0];
     while (current != nullptr) {
         Node* next = current->forward[0];
-        delete current;
+        FreeNode(current);
         current = next;
     }
-    std::fill(head_->forward.begin(), head_->forward.end(), nullptr);
+    std::fill(head_->forward, head_->forward + kMaxHeight, nullptr);
     max_height_ = 1;
 }
 
@@ -59,13 +76,13 @@ SkipList::Node* SkipList::FindGreaterOrEqual(const std::string& key, Node** upda
     }
 }
 
-void SkipList::Insert(const std::string& key, const MemTableEntry& entry) {
+void SkipList::Insert(std::string key, MemTableEntry entry) {
     Node* update[kMaxHeight];
     Node* x = FindGreaterOrEqual(key, update);
 
     if (x != nullptr && x->key == key) {
         // Key already exists, perform update
-        x->entry = entry;
+        x->entry = std::move(entry);
         return;
     }
 
@@ -77,7 +94,7 @@ void SkipList::Insert(const std::string& key, const MemTableEntry& entry) {
         max_height_ = height;
     }
 
-    x = new Node(key, entry, height);
+    x = AllocateNode(std::move(key), std::move(entry), height);
     for (int i = 0; i < height; i++) {
         x->forward[i] = update[i]->forward[i];
         update[i]->forward[i] = x;

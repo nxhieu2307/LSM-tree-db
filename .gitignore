@@ -1,6 +1,7 @@
-# WAL Test Binaries
+# WAL / SkipList Test Binaries
 wal_test_runner
 wal_test
+skiplist_test
 wal_test.exe
 wal_test.dSYM/
 *.o

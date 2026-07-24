@@ -1,12 +1,38 @@
-# WAL / SkipList Test Binaries
-wal_test_runner
-wal_test
+# Build directories
+build/
+bin/
+out/
+
+# Executables & Binaries
+memtable_test
 skiplist_test
-wal_test.exe
-wal_test.dSYM/
+wal_test
+wal_test_runner
+*.exe
+*.out
+*.app
+*.dSYM/
+
+# Object files & Libraries
 *.o
 *.obj
+*.a
+*.lib
+*.so
+*.dylib
 
-# Temporary WAL Data Files (created during test runs)
+# Temporary WAL & Database data files generated during tests
 *.wal
 *.log
+*.sst
+*.ldb
+*.db
+
+# IDE & Tooling outputs
+.vscode/
+.idea/
+.vs/
+*.swp
+*.swo
+*~
+compile_commands.json

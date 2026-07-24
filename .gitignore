@@ -36,3 +36,6 @@ wal_test_runner
 *.swo
 *~
 compile_commands.json
+
+# Internal/generated implementation docs
+IMPLEMENTATION_DETAILS.md

@@ -39,3 +39,5 @@ compile_commands.json
 
 # Internal/generated implementation docs
 IMPLEMENTATION_DETAILS.md
+WEEKLY_REPORT.md
+*.report.md

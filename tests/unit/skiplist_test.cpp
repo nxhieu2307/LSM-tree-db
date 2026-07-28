@@ -1,4 +1,4 @@
-#include "../src/core/skiplist.hpp"
+#include "../../src/core/skiplist.hpp"
 #include <cassert>
 #include <iostream>
 #include <string>

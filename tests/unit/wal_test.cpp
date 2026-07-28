@@ -1,6 +1,7 @@
-#include "../src/core/wal.hpp"
+#include "../../src/core/wal.hpp"
 #include <cassert>
 #include <cstdio>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -180,12 +181,43 @@ void test_nonexistent_file() {
   std::remove(filename.c_str());
 }
 
+// Test behavior with a truncated trailing entry from crash
+void test_truncated_entry_recovery() {
+  const std::string filename = "test_truncated_entry.wal";
+  std::remove(filename.c_str());
+
+  {
+    lsm::WAL wal(filename);
+    assert(wal.Append("PUT", "key1", "val1"));
+    assert(wal.Append("PUT", "key2", "val2"));
+  }
+
+  // Simulate a partial line write crash by appending an incomplete JSON line
+  {
+    std::ofstream file(filename, std::ios::app);
+    file << "{\"operation\":\"PUT\",\"key\":\"key3\",\"value\":\"incomplete";
+  }
+
+  {
+    lsm::WAL wal(filename);
+    std::vector<lsm::LogEntry> entries;
+    assert(wal.Recover(entries));
+    // Should recover the 2 valid entries preceding the truncated entry
+    assert(entries.size() == 2);
+    assert(entries[0].key == "key1" && entries[0].value == "val1");
+    assert(entries[1].key == "key2" && entries[1].value == "val2");
+  }
+
+  std::remove(filename.c_str());
+}
+
 int main() {
   std::cout << "Starting WAL component tests..." << std::endl;
 
   run_test("Basic Append and Recover", test_basic_append_recover);
   run_test("JSON Escaping / Unescaping Verification", test_json_escaping);
   run_test("Nonexistent File Recovery", test_nonexistent_file);
+  run_test("Truncated Trailing Entry Recovery", test_truncated_entry_recovery);
 
   std::cout << "All WAL tests passed successfully!" << std::endl;
   return 0;

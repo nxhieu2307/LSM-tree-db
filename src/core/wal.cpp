@@ -39,8 +39,8 @@ bool ParseStringField(const std::string &line, const std::string &field_name,
   while (end < line.length()) {
     if (line[end] == '"') {
       size_t slashes = 0;
-      size_t p = end - 1;
-      while (p >= start && line[p] == '\\') {
+      size_t p = end;
+      while (p > start && line[p - 1] == '\\') {
         slashes++;
         p--;
       }
@@ -83,7 +83,7 @@ bool ParseIntegerField(const std::string &line, const std::string &field_name,
   size_t end = pos;
   if (line[end] == '-')
     end++;
-  while (end < line.length() && std::isdigit(line[end])) {
+  while (end < line.length() && std::isdigit(static_cast<unsigned char>(line[end]))) {
     end++;
   }
 
@@ -131,9 +131,17 @@ bool WAL::Append(const std::string &operation, const std::string &key,
       EscapeJSON(key) + "\",\"value\":\"" + EscapeJSON(value) +
       "\",\"timestamp\":" + std::to_string(timestamp) + "}\n";
 
-  ssize_t bytes_written = write(fd_, json_line.data(), json_line.size());
-  if (bytes_written != static_cast<ssize_t>(json_line.size())) {
-    return false;
+  size_t total_written = 0;
+  const char *ptr = json_line.data();
+  size_t len = json_line.size();
+  while (total_written < len) {
+    ssize_t n = write(fd_, ptr + total_written, len - total_written);
+    if (n < 0) {
+      if (errno == EINTR) continue;
+      return false;
+    }
+    if (n == 0) return false;
+    total_written += n;
   }
 
   // Ensure data reaches persistent storage (synchronous writes)
@@ -165,7 +173,9 @@ bool WAL::Recover(std::vector<LogEntry> &entries) {
     if (ParseLogEntry(line, entry)) {
       entries.push_back(entry);
     } else {
-      return false; // Found a corrupted entry
+      // Encountered a corrupted/truncated trailing record from ungraceful crash.
+      // Stop replaying at the corruption point, preserving all preceding valid entries.
+      break;
     }
   }
   return true;

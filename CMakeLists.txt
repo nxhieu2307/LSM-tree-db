@@ -18,6 +18,7 @@ add_library(lsm_core STATIC
     src/core/skiplist.cpp
     src/core/wal.cpp
     src/core/memtable.cpp
+    src/core/sstable_builder.cpp
 )
 
 target_include_directories(lsm_core PUBLIC

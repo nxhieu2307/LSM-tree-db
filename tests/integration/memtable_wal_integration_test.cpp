@@ -58,7 +58,8 @@ void test_memtable_wal_single_recovery() {
     // Out-of-scope simulates process termination / crash
   }
 
-  // Phase 2: Create a fresh MemTable initialized with the existing WAL file to trigger recovery
+  // Phase 2: Create a fresh MemTable initialized with the existing WAL file to
+  // trigger recovery
   {
     MemTable recovered_memtable(wal_path);
     assert(!recovered_memtable.Empty());
@@ -89,7 +90,8 @@ void test_memtable_wal_single_recovery() {
   remove_file_if_exists(wal_path);
 }
 
-// Test 2: Multi-session recovery (writes -> crash -> recover -> writes -> crash -> recover)
+// Test 2: Multi-session recovery (writes -> crash -> recover -> writes -> crash
+// -> recover)
 void test_memtable_wal_multi_session_recovery() {
   const std::string wal_path = "test_memtable_wal_multi_session.log";
   remove_file_if_exists(wal_path);
@@ -101,7 +103,8 @@ void test_memtable_wal_multi_session_recovery() {
     session1.Put("session1_k2", "val2");
   }
 
-  // Session 2: Recover session 1 state upon construction, perform session 2 writes
+  // Session 2: Recover session 1 state upon construction, perform session 2
+  // writes
   {
     MemTable session2(wal_path);
     assert(session2.Count() == 2);
@@ -113,7 +116,8 @@ void test_memtable_wal_multi_session_recovery() {
   // Session 3: Recover combined state of session 1 & 2 upon construction
   {
     MemTable session3(wal_path);
-    assert(session3.Count() == 3); // session1_k1 (deleted), session1_k2, session2_k3
+    assert(session3.Count() ==
+           3); // session1_k1 (deleted), session1_k2, session2_k3
 
     std::string val;
     bool is_deleted = false;
@@ -197,14 +201,17 @@ void test_memtable_wal_truncated_crash_recovery() {
     file << "{\"operation\":\"PUT\",\"key\":\"uncommitted_k3\",\"value\":\"par";
   }
 
-  // Verify recovery succeeds and restores committed_k1 & committed_k2 without failing
+  // Verify recovery succeeds and restores committed_k1 & committed_k2 without
+  // failing
   {
     MemTable recovered(wal_path);
     std::string val;
     bool is_deleted = false;
 
-    assert(recovered.Get("committed_k1", &val, &is_deleted) && !is_deleted && val == "val1");
-    assert(recovered.Get("committed_k2", &val, &is_deleted) && !is_deleted && val == "val2");
+    assert(recovered.Get("committed_k1", &val, &is_deleted) && !is_deleted &&
+           val == "val1");
+    assert(recovered.Get("committed_k2", &val, &is_deleted) && !is_deleted &&
+           val == "val2");
     assert(!recovered.Get("uncommitted_k3", &val, &is_deleted));
   }
 
@@ -212,15 +219,22 @@ void test_memtable_wal_truncated_crash_recovery() {
 }
 
 int main() {
-  std::cout << "==================================================" << std::endl;
-  std::cout << "  RUNNING MEMTABLE & WAL INTEGRATION TESTS        " << std::endl;
-  std::cout << "==================================================" << std::endl;
+  std::cout << "=================================================="
+            << std::endl;
+  std::cout << "  RUNNING MEMTABLE & WAL INTEGRATION TESTS        "
+            << std::endl;
+  std::cout << "=================================================="
+            << std::endl;
 
   run_test("MemTable WAL Single Recovery", test_memtable_wal_single_recovery);
-  run_test("MemTable WAL Multi-Session Recovery", test_memtable_wal_multi_session_recovery);
-  run_test("MemTable WAL Large Workload Recovery", test_memtable_wal_large_workload_recovery);
-  run_test("MemTable WAL Truncated Crash Recovery", test_memtable_wal_truncated_crash_recovery);
+  run_test("MemTable WAL Multi-Session Recovery",
+           test_memtable_wal_multi_session_recovery);
+  run_test("MemTable WAL Large Workload Recovery",
+           test_memtable_wal_large_workload_recovery);
+  run_test("MemTable WAL Truncated Crash Recovery",
+           test_memtable_wal_truncated_crash_recovery);
 
-  std::cout << "ALL MEMTABLE & WAL INTEGRATION TESTS PASSED SUCCESSFULLY!" << std::endl;
+  std::cout << "ALL MEMTABLE & WAL INTEGRATION TESTS PASSED SUCCESSFULLY!"
+            << std::endl;
   return 0;
 }

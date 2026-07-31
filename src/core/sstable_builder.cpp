@@ -1,4 +1,5 @@
 #include "sstable_builder.hpp"
+#include "sstable_format.hpp"
 
 namespace lsm {
 
@@ -21,6 +22,10 @@ bool SSTableBuilder::Add(const std::string &key, const std::string &value,
 }
 
 bool SSTableBuilder::Finish() {
+  SSTableFooter footer;
+  footer.magic_number = kSSTableMagicNumber;
+  (void)footer;
+
   finished_ = true;
   return true;
 }

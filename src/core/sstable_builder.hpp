@@ -1,7 +1,5 @@
 #pragma once
 
-#include "sstable_format.hpp"
-#include <cstddef>
 #include <cstdint>
 #include <string>
 

@@ -1,7 +1,10 @@
 #pragma once
 
+#include "sstable_format.hpp"
 #include <cstdint>
+#include <fstream>
 #include <string>
+#include <vector>
 
 namespace lsm {
 
@@ -26,9 +29,10 @@ public:
 
 private:
   std::string file_path_;
-  int fd_{-1};
+  std::ofstream file_;
   uint64_t entry_count_{0};
   uint64_t current_offset_{0};
+  std::vector<IndexEntry> index_entries_;
   bool finished_{false};
 };
 

@@ -37,7 +37,10 @@ wal_test_runner
 *~
 compile_commands.json
 
-# Internal/generated implementation docs
+# Internal/generated implementation docs & learning notes
 IMPLEMENTATION_DETAILS.md
 WEEKLY_REPORT.md
+CMAKE_GUIDE.md
+notes/
+dev_notes/
 *.report.md

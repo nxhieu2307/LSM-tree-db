@@ -35,6 +35,9 @@ target_link_libraries(wal_test PRIVATE lsm_core)
 add_executable(memtable_test tests/unit/memtable_test.cpp)
 target_link_libraries(memtable_test PRIVATE lsm_core)
 
+add_executable(sstable_builder_test tests/unit/sstable_builder_test.cpp)
+target_link_libraries(sstable_builder_test PRIVATE lsm_core)
+
 # Integration Test Executables
 add_executable(memtable_wal_integration_test tests/integration/memtable_wal_integration_test.cpp)
 target_link_libraries(memtable_wal_integration_test PRIVATE lsm_core)
@@ -46,7 +49,9 @@ enable_testing()
 add_test(NAME Unit_SkipList COMMAND skiplist_test)
 add_test(NAME Unit_WAL COMMAND wal_test)
 add_test(NAME Unit_MemTable COMMAND memtable_test)
+add_test(NAME Unit_SSTableBuilder COMMAND sstable_builder_test)
 
 # Integration tests
 add_test(NAME Integration_MemTableWAL COMMAND memtable_wal_integration_test)
+
 

@@ -19,6 +19,7 @@ add_library(lsm_core STATIC
     src/core/wal.cpp
     src/core/memtable.cpp
     src/core/sstable_builder.cpp
+    src/core/sstable_reader.cpp
 )
 
 target_include_directories(lsm_core PUBLIC
@@ -38,6 +39,9 @@ target_link_libraries(memtable_test PRIVATE lsm_core)
 add_executable(sstable_builder_test tests/unit/sstable_builder_test.cpp)
 target_link_libraries(sstable_builder_test PRIVATE lsm_core)
 
+add_executable(sstable_reader_test tests/unit/sstable_reader_test.cpp)
+target_link_libraries(sstable_reader_test PRIVATE lsm_core)
+
 # Integration Test Executables
 add_executable(memtable_wal_integration_test tests/integration/memtable_wal_integration_test.cpp)
 target_link_libraries(memtable_wal_integration_test PRIVATE lsm_core)
@@ -50,6 +54,7 @@ add_test(NAME Unit_SkipList COMMAND skiplist_test)
 add_test(NAME Unit_WAL COMMAND wal_test)
 add_test(NAME Unit_MemTable COMMAND memtable_test)
 add_test(NAME Unit_SSTableBuilder COMMAND sstable_builder_test)
+add_test(NAME Unit_SSTableReader COMMAND sstable_reader_test)
 
 # Integration tests
 add_test(NAME Integration_MemTableWAL COMMAND memtable_wal_integration_test)

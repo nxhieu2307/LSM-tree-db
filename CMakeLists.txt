@@ -13,6 +13,8 @@ else()
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+find_package(Threads REQUIRED)
+
 # Core library
 add_library(lsm_core STATIC
     src/core/skiplist.cpp
@@ -27,6 +29,20 @@ add_library(lsm_core STATIC
 target_include_directories(lsm_core PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/core>
 )
+
+# CLI Binary Executable
+add_executable(lsm_db
+    src/main.cpp
+    src/core/skiplist.cpp
+    src/core/wal.cpp
+    src/core/memtable.cpp
+    src/core/sstable_builder.cpp
+    src/core/sstable_reader.cpp
+    src/core/manifest.cpp
+    src/core/engine.cpp
+)
+target_include_directories(lsm_db PRIVATE src/core)
+target_link_libraries(lsm_db PRIVATE lsm_core Threads::Threads)
 
 # Unit Test Executables
 add_executable(skiplist_test tests/unit/skiplist_test.cpp)

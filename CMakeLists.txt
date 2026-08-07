@@ -20,6 +20,7 @@ add_library(lsm_core STATIC
     src/core/memtable.cpp
     src/core/sstable_builder.cpp
     src/core/sstable_reader.cpp
+    src/core/manifest.cpp
     src/core/engine.cpp
 )
 
@@ -50,6 +51,9 @@ target_link_libraries(memtable_wal_integration_test PRIVATE lsm_core)
 add_executable(integration_engine_sstable tests/integration/engine_sstable_integration_test.cpp)
 target_link_libraries(integration_engine_sstable PRIVATE lsm_core)
 
+add_executable(integration_engine_recovery tests/integration/engine_recovery_test.cpp)
+target_link_libraries(integration_engine_recovery PRIVATE lsm_core)
+
 # CTest setup
 enable_testing()
 
@@ -63,6 +67,8 @@ add_test(NAME Unit_SSTableReader COMMAND sstable_reader_test)
 # Integration tests
 add_test(NAME Integration_MemTableWAL COMMAND memtable_wal_integration_test)
 add_test(NAME Integration_EngineSSTable COMMAND integration_engine_sstable)
+add_test(NAME Integration_EngineRecovery COMMAND integration_engine_recovery)
+
 
 
 

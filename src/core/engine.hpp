@@ -1,5 +1,6 @@
 #pragma once
 
+#include "manifest.hpp"
 #include "memtable.hpp"
 #include "sstable_reader.hpp"
 #include <atomic>
@@ -51,6 +52,7 @@ private:
   std::string wal_path_;
   std::string db_dir_;
 
+  std::unique_ptr<Manifest> manifest_;
   std::unique_ptr<MemTable> active_memtable_;
   std::unique_ptr<MemTable> immutable_memtable_;
   std::vector<std::shared_ptr<SSTableReader>> sstables_;

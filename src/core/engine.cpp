@@ -11,6 +11,40 @@ StorageEngine::StorageEngine(size_t write_buffer_size,
                              const std::string &db_dir)
     : write_buffer_size_(write_buffer_size), wal_path_(wal_path),
       db_dir_(db_dir) {
+  std::string manifest_path = (db_dir_.empty() || db_dir_ == ".")
+                                  ? "MANIFEST"
+                                  : db_dir_ + "/MANIFEST";
+  manifest_ = std::make_unique<Manifest>(manifest_path);
+
+  // Phase 1: SSTable Recovery from MANIFEST
+  std::vector<std::string> sstable_files = manifest_->LoadSSTables();
+  uint64_t max_id = 0;
+  for (const auto &filename : sstable_files) {
+    std::ifstream test_file(filename);
+    if (test_file.good()) {
+      test_file.close();
+      auto reader = std::make_shared<SSTableReader>(filename);
+      sstables_.insert(sstables_.begin(), reader);
+
+      size_t pos = filename.rfind("data_");
+      if (pos != std::string::npos) {
+        size_t start = pos + 5;
+        size_t end = filename.find(".sst", start);
+        if (end != std::string::npos) {
+          try {
+            uint64_t id = std::stoull(filename.substr(start, end - start));
+            if (id >= max_id) {
+              max_id = id + 1;
+            }
+          } catch (...) {
+          }
+        }
+      }
+    }
+  }
+  sstable_id_counter_ = max_id;
+
+  // Phase 2: WAL Replay / Active MemTable Initialization
   active_memtable_ = std::make_unique<MemTable>(wal_path_);
 }
 
@@ -128,6 +162,9 @@ void StorageEngine::FlushMemTableInternal() {
   // Step 5: Instantiate a new SSTableReader and prepend to sstables (newest first)
   auto reader = std::make_shared<SSTableReader>(sstable_path);
   sstables_.insert(sstables_.begin(), reader);
+
+  // Step 5b: Persist SSTable filename in MANIFEST
+  manifest_->AddSSTable(sstable_path);
 
   // Step 6: Reset immutable_memtable and clear/truncate the active WAL file
   immutable_memtable_.reset();

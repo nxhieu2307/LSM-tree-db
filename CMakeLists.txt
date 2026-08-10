@@ -24,6 +24,7 @@ add_library(lsm_core STATIC
     src/core/sstable_reader.cpp
     src/core/manifest.cpp
     src/core/engine.cpp
+    src/core/bloom_filter.cpp
 )
 
 target_include_directories(lsm_core PUBLIC
@@ -40,6 +41,7 @@ add_executable(lsm_db
     src/core/sstable_reader.cpp
     src/core/manifest.cpp
     src/core/engine.cpp
+    src/core/bloom_filter.cpp
 )
 target_include_directories(lsm_db PRIVATE src/core)
 target_link_libraries(lsm_db PRIVATE lsm_core Threads::Threads)
@@ -60,6 +62,9 @@ target_link_libraries(sstable_builder_test PRIVATE lsm_core)
 add_executable(sstable_reader_test tests/unit/sstable_reader_test.cpp)
 target_link_libraries(sstable_reader_test PRIVATE lsm_core)
 
+add_executable(unit_bloom_filter tests/unit/bloom_filter_test.cpp)
+target_link_libraries(unit_bloom_filter PRIVATE lsm_core)
+
 # Integration Test Executables
 add_executable(memtable_wal_integration_test tests/integration/memtable_wal_integration_test.cpp)
 target_link_libraries(memtable_wal_integration_test PRIVATE lsm_core)
@@ -79,6 +84,7 @@ add_test(NAME Unit_WAL COMMAND wal_test)
 add_test(NAME Unit_MemTable COMMAND memtable_test)
 add_test(NAME Unit_SSTableBuilder COMMAND sstable_builder_test)
 add_test(NAME Unit_SSTableReader COMMAND sstable_reader_test)
+add_test(NAME Unit_BloomFilter COMMAND unit_bloom_filter)
 
 # Integration tests
 add_test(NAME Integration_MemTableWAL COMMAND memtable_wal_integration_test)

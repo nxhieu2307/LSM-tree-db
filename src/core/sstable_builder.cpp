@@ -48,6 +48,8 @@ bool SSTableBuilder::Add(const std::string &key, const std::string &value,
     index_entries_.push_back(IndexEntry{key, offset});
   }
 
+  bloom_filter_.Add(key);
+
   entry_count_++;
   current_offset_ = static_cast<uint64_t>(file_.tellp());
   return true;
@@ -74,10 +76,18 @@ bool SSTableBuilder::Finish() {
   uint64_t index_end = static_cast<uint64_t>(file_.tellp());
   uint64_t index_size = index_end - index_offset;
 
+  uint64_t filter_offset = static_cast<uint64_t>(file_.tellp());
+  bloom_filter_.Serialize(file_);
+
+  uint64_t filter_end = static_cast<uint64_t>(file_.tellp());
+  uint64_t filter_size = filter_end - filter_offset;
+
   SSTableFooter footer;
   footer.index_offset = index_offset;
   footer.index_size = index_size;
-  footer.entry_count = entry_count_;
+  footer.filter_offset = filter_offset;
+  footer.filter_size = filter_size;
+  footer.entry_count = static_cast<uint32_t>(entry_count_);
   footer.magic_number = kSSTableMagicNumber;
 
   file_.write(reinterpret_cast<const char *>(&footer), sizeof(footer));

@@ -21,11 +21,13 @@ struct IndexEntry {
 struct SSTableFooter {
   uint64_t index_offset{0};
   uint64_t index_size{0};
-  uint64_t entry_count{0};
+  uint64_t filter_offset{0};
+  uint64_t filter_size{0};
+  uint32_t entry_count{0};
   uint32_t magic_number{kSSTableMagicNumber};
 };
 #pragma pack(pop)
 
-static_assert(sizeof(SSTableFooter) == 28, "SSTableFooter size must be exactly 28 bytes");
+static_assert(sizeof(SSTableFooter) == 40, "SSTableFooter size must be exactly 40 bytes");
 
 } // namespace lsm

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bloom_filter.hpp"
 #include "sstable_format.hpp"
 #include <cstdint>
 #include <fstream>
@@ -33,6 +34,7 @@ private:
   uint64_t entry_count_{0};
   uint64_t current_offset_{0};
   std::vector<IndexEntry> index_entries_;
+  BloomFilter bloom_filter_;
   bool finished_{false};
 };
 

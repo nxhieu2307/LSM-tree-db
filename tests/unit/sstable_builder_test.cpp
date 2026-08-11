@@ -52,16 +52,30 @@ void test_sstable_builder_serialization() {
     std::streamsize file_size = file.tellg();
     assert(file_size > static_cast<std::streamsize>(sizeof(SSTableFooter)));
 
-    // Read Footer from last 28 bytes
+    // Read Footer from last 40 bytes
     file.seekg(file_size - static_cast<std::streamsize>(sizeof(SSTableFooter)));
     SSTableFooter footer;
     file.read(reinterpret_cast<char *>(&footer), sizeof(footer));
 
     assert(footer.magic_number == kSSTableMagicNumber);
-    assert(footer.entry_count == static_cast<uint64_t>(TOTAL_ENTRIES));
+    assert(footer.entry_count == static_cast<uint32_t>(TOTAL_ENTRIES));
     assert(footer.index_offset < static_cast<uint64_t>(file_size));
-    assert(footer.index_offset + footer.index_size + sizeof(SSTableFooter) ==
+    assert(footer.filter_offset > footer.index_offset);
+    assert(footer.filter_offset == footer.index_offset + footer.index_size);
+    assert(footer.filter_size > 0);
+    assert(footer.filter_offset + footer.filter_size + sizeof(SSTableFooter) ==
            static_cast<uint64_t>(file_size));
+
+    // Read and verify serialized Bloom Filter block
+    file.seekg(footer.filter_offset);
+    BloomFilter filter;
+    filter.Deserialize(file);
+    assert(filter.GetBitCount() > 0);
+    assert(filter.GetHashCount() > 0);
+    for (int i = 0; i < TOTAL_ENTRIES; ++i) {
+      std::string key = "key_" + (i < 10 ? "0" + std::to_string(i) : std::to_string(i));
+      assert(filter.MayContain(key));
+    }
 
     // Read and verify Sparse Index block
     file.seekg(footer.index_offset);

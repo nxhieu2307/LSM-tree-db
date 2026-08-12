@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bloom_filter.hpp"
 #include "sstable_format.hpp"
 #include <cstdint>
 #include <fstream>
@@ -30,12 +31,14 @@ public:
   const std::vector<std::pair<std::string, uint64_t>> &sparse_index() const {
     return sparse_index_;
   }
+  const BloomFilter &bloom_filter() const { return bloom_filter_; }
 
 private:
   std::string filepath_;
   mutable std::ifstream file_;
   SSTableFooter footer_;
   std::vector<std::pair<std::string, uint64_t>> sparse_index_;
+  BloomFilter bloom_filter_;
 };
 
 } // namespace lsm

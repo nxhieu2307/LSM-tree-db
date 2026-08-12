@@ -83,7 +83,12 @@ void test_sstable_reader_point_lookups() {
       assert(is_deleted == true);
     }
 
-    // Test non-existent keys
+    // Test deserialized Bloom Filter properties and MayContain behavior
+    assert(reader.bloom_filter().GetBitCount() > 0);
+    assert(reader.bloom_filter().MayContain("key_01") == true);
+    assert(reader.bloom_filter().MayContain("non_existent_key_12345") == false);
+
+    // Test non-existent keys (skipping disk search via Bloom Filter)
     {
       std::string val;
       bool is_deleted = false;
@@ -92,6 +97,7 @@ void test_sstable_reader_point_lookups() {
       assert(reader.Get("aaa", &val, &is_deleted) == false);
       assert(reader.Get("zzz", &val, &is_deleted) == false);
       assert(reader.Get("key_04_missing", &val, &is_deleted) == false);
+      assert(reader.Get("non_existent_key_12345", &val, &is_deleted) == false);
     }
   }
 

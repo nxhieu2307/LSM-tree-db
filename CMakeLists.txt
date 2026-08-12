@@ -61,6 +61,7 @@ target_link_libraries(sstable_builder_test PRIVATE lsm_core)
 
 add_executable(sstable_reader_test tests/unit/sstable_reader_test.cpp)
 target_link_libraries(sstable_reader_test PRIVATE lsm_core)
+add_custom_target(unit_sstable_reader DEPENDS sstable_reader_test)
 
 add_executable(unit_bloom_filter tests/unit/bloom_filter_test.cpp)
 target_link_libraries(unit_bloom_filter PRIVATE lsm_core)

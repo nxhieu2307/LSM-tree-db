@@ -26,6 +26,10 @@ SSTableReader::SSTableReader(const std::string &filepath)
     throw std::runtime_error("Invalid SSTable footer magic number in file: " + filepath);
   }
 
+  // Seek to footer.filter_offset and deserialize the Bloom Filter
+  file_.seekg(footer_.filter_offset, std::ios::beg);
+  bloom_filter_.Deserialize(file_);
+
   // Seek to footer.index_offset and deserialize the Sparse Index
   file_.seekg(footer_.index_offset, std::ios::beg);
   uint64_t bytes_read = 0;
@@ -57,6 +61,10 @@ SSTableReader::~SSTableReader() {
 }
 
 bool SSTableReader::Get(const std::string &key, std::string *value, bool *is_deleted) {
+  if (!bloom_filter_.MayContain(key)) {
+    return false;
+  }
+
   if (sparse_index_.empty()) {
     return false;
   }

@@ -32,6 +32,7 @@ public:
     return sparse_index_;
   }
   const BloomFilter &bloom_filter() const { return bloom_filter_; }
+  const std::string &filepath() const { return filepath_; }
 
 private:
   std::string filepath_;

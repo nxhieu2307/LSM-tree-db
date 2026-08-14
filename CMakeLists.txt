@@ -22,6 +22,7 @@ add_library(lsm_core STATIC
     src/core/memtable.cpp
     src/core/sstable_builder.cpp
     src/core/sstable_reader.cpp
+    src/core/sstable_iterator.cpp
     src/core/manifest.cpp
     src/core/engine.cpp
     src/core/bloom_filter.cpp
@@ -39,6 +40,7 @@ add_executable(lsm_db
     src/core/memtable.cpp
     src/core/sstable_builder.cpp
     src/core/sstable_reader.cpp
+    src/core/sstable_iterator.cpp
     src/core/manifest.cpp
     src/core/engine.cpp
     src/core/bloom_filter.cpp
@@ -63,6 +65,10 @@ add_executable(sstable_reader_test tests/unit/sstable_reader_test.cpp)
 target_link_libraries(sstable_reader_test PRIVATE lsm_core)
 add_custom_target(unit_sstable_reader DEPENDS sstable_reader_test)
 
+add_executable(sstable_iterator_test tests/unit/sstable_iterator_test.cpp)
+target_link_libraries(sstable_iterator_test PRIVATE lsm_core)
+add_custom_target(unit_sstable_iterator DEPENDS sstable_iterator_test)
+
 add_executable(unit_bloom_filter tests/unit/bloom_filter_test.cpp)
 target_link_libraries(unit_bloom_filter PRIVATE lsm_core)
 
@@ -85,6 +91,7 @@ add_test(NAME Unit_WAL COMMAND wal_test)
 add_test(NAME Unit_MemTable COMMAND memtable_test)
 add_test(NAME Unit_SSTableBuilder COMMAND sstable_builder_test)
 add_test(NAME Unit_SSTableReader COMMAND sstable_reader_test)
+add_test(NAME Unit_SSTableIterator COMMAND sstable_iterator_test)
 add_test(NAME Unit_BloomFilter COMMAND unit_bloom_filter)
 
 # Integration tests

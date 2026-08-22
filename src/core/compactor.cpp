@@ -3,6 +3,7 @@
 #include "sstable_iterator.hpp"
 #include <memory>
 #include <queue>
+#include <string>
 #include <vector>
 
 namespace lsm {
@@ -34,7 +35,6 @@ bool Compactor::Compact(const std::vector<CompactorInput> &inputs,
                         uint32_t block_size,
                         bool purge_tombstones) {
   (void)block_size;
-  (void)purge_tombstones;
 
   if (inputs.empty()) {
     return true;
@@ -49,7 +49,12 @@ bool Compactor::Compact(const std::vector<CompactorInput> &inputs,
 
   for (size_t i = 0; i < inputs.size(); ++i) {
     const auto &input = inputs[i];
-    if (input.iterator && input.iterator->Valid()) {
+    if (!input.iterator) {
+      continue;
+    }
+
+    input.iterator->SeekToFirst();
+    if (input.iterator->Valid()) {
       min_heap.push(HeapNode{
           input.iterator->Key(),
           input.iterator->Value(),
@@ -60,8 +65,58 @@ bool Compactor::Compact(const std::vector<CompactorInput> &inputs,
     }
   }
 
-  // Compaction merge loop will be implemented in subsequent sub-steps
-  return false;
+  SSTableBuilder builder(output_path);
+
+  while (!min_heap.empty()) {
+    HeapNode winner = min_heap.top();
+    min_heap.pop();
+
+    // Advance the winner's underlying iterator
+    auto &winner_iter = inputs[winner.input_idx].iterator;
+    winner_iter->Next();
+    if (winner_iter->Valid()) {
+      min_heap.push(HeapNode{
+          winner_iter->Key(),
+          winner_iter->Value(),
+          winner_iter->IsDeleted(),
+          winner.file_id,
+          winner.input_idx
+      });
+    }
+
+    // Drain and advance all duplicate iterators matching the winner's key
+    while (!min_heap.empty() && min_heap.top().key == winner.key) {
+      HeapNode duplicate = min_heap.top();
+      min_heap.pop();
+
+      auto &dup_iter = inputs[duplicate.input_idx].iterator;
+      dup_iter->Next();
+      if (dup_iter->Valid()) {
+        min_heap.push(HeapNode{
+            dup_iter->Key(),
+            dup_iter->Value(),
+            dup_iter->IsDeleted(),
+            duplicate.file_id,
+            duplicate.input_idx
+        });
+      }
+    }
+
+    // Emit entry to output SSTable
+    if (winner.is_deleted) {
+      if (!purge_tombstones) {
+        if (!builder.Add(winner.key, "", /*is_deleted=*/true)) {
+          return false;
+        }
+      }
+    } else {
+      if (!builder.Add(winner.key, winner.value, /*is_deleted=*/false)) {
+        return false;
+      }
+    }
+  }
+
+  return builder.Finish();
 }
 
 } // namespace lsm

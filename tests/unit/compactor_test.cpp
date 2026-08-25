@@ -1,7 +1,7 @@
-#include "../src/core/compactor.hpp"
-#include "../src/core/sstable_builder.hpp"
-#include "../src/core/sstable_iterator.hpp"
-#include "../src/core/sstable_reader.hpp"
+#include "../../src/core/compactor.hpp"
+#include "../../src/core/sstable_builder.hpp"
+#include "../../src/core/sstable_iterator.hpp"
+#include "../../src/core/sstable_reader.hpp"
 #include <cassert>
 #include <cstdio>
 #include <filesystem>

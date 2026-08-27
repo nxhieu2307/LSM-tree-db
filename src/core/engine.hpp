@@ -15,9 +15,12 @@ namespace lsm {
 
 class StorageEngine {
 public:
+  static constexpr size_t kDefaultCompactionThreshold = 4;
+
   explicit StorageEngine(size_t write_buffer_size = 4096,
                          const std::string &wal_path = "wal.log",
-                         const std::string &db_dir = ".");
+                         const std::string &db_dir = ".",
+                         size_t compaction_threshold = kDefaultCompactionThreshold);
   ~StorageEngine();
 
   // Disallow copy/move to manage background resources safely
@@ -38,19 +41,27 @@ public:
   // Manually or automatically flush active memtable to disk as an SSTable file
   void FlushMemTable();
 
+  // Trigger compaction manually or check threshold
+  bool TriggerCompaction();
+  void MaybeTriggerCompaction();
+
   // Metadata & inspection accessors
   size_t sstable_count() const;
   std::vector<std::shared_ptr<SSTableReader>> sstables() const;
   size_t write_buffer_size() const { return write_buffer_size_; }
+  size_t compaction_threshold() const { return compaction_threshold_; }
 
 private:
   // Helper to generate next SSTable file path (e.g. db_dir_/data_<id>.sst)
   std::string NextSSTablePath();
   void FlushMemTableInternal();
+  bool TriggerCompactionInternal();
+  void MaybeTriggerCompactionInternal();
 
   size_t write_buffer_size_;
   std::string wal_path_;
   std::string db_dir_;
+  size_t compaction_threshold_{kDefaultCompactionThreshold};
 
   std::unique_ptr<Manifest> manifest_;
   std::unique_ptr<MemTable> active_memtable_;

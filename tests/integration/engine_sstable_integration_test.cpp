@@ -24,9 +24,15 @@ void run_test(const std::string &test_name, void (*test_func)()) {
 
 void cleanup_files() {
   std::remove("engine_test.wal");
-  for (int i = 0; i < 20; ++i) {
-    std::string sst_name = "data_" + std::to_string(i) + ".sst";
-    std::remove(sst_name.c_str());
+  std::remove("MANIFEST");
+  std::remove("MANIFEST.tmp");
+  for (int i = 0; i < 50; ++i) {
+    std::string sst1 = "data_" + std::to_string(i) + ".sst";
+    std::remove(sst1.c_str());
+    std::string sst2 = "sstable_" + std::to_string(i) + ".sst";
+    std::remove(sst2.c_str());
+    std::string sst3 = "compacted_" + std::to_string(i) + ".sst";
+    std::remove(sst3.c_str());
   }
 }
 

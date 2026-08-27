@@ -1,16 +1,55 @@
 #include "engine.hpp"
+#include "compactor.hpp"
 #include "sstable_builder.hpp"
+#include "sstable_iterator.hpp"
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
 
 namespace lsm {
 
+namespace {
+
+uint64_t ExtractFileId(const std::string &filename) {
+  size_t last_slash = filename.find_last_of("/\\");
+  std::string base = (last_slash == std::string::npos) ? filename : filename.substr(last_slash + 1);
+
+  size_t pos = base.rfind("data_");
+  size_t prefix_len = 5;
+  if (pos == std::string::npos) {
+    pos = base.rfind("sstable_");
+    prefix_len = 8;
+  }
+  if (pos == std::string::npos) {
+    pos = base.rfind("compacted_");
+    prefix_len = 10;
+  }
+  if (pos != std::string::npos) {
+    size_t start = pos + prefix_len;
+    size_t end = base.find(".sst", start);
+    if (end != std::string::npos) {
+      try {
+        return std::stoull(base.substr(start, end - start));
+      } catch (...) {
+      }
+    }
+  }
+  try {
+    return std::stoull(base);
+  } catch (...) {
+  }
+  return 0;
+}
+
+} // anonymous namespace
+
 StorageEngine::StorageEngine(size_t write_buffer_size,
                              const std::string &wal_path,
-                             const std::string &db_dir)
+                             const std::string &db_dir,
+                             size_t compaction_threshold)
     : write_buffer_size_(write_buffer_size), wal_path_(wal_path),
-      db_dir_(db_dir) {
+      db_dir_(db_dir), compaction_threshold_(compaction_threshold) {
   std::string manifest_path = (db_dir_.empty() || db_dir_ == ".")
                                   ? "MANIFEST"
                                   : db_dir_ + "/MANIFEST";
@@ -26,19 +65,9 @@ StorageEngine::StorageEngine(size_t write_buffer_size,
       auto reader = std::make_shared<SSTableReader>(filename);
       sstables_.insert(sstables_.begin(), reader);
 
-      size_t pos = filename.rfind("data_");
-      if (pos != std::string::npos) {
-        size_t start = pos + 5;
-        size_t end = filename.find(".sst", start);
-        if (end != std::string::npos) {
-          try {
-            uint64_t id = std::stoull(filename.substr(start, end - start));
-            if (id >= max_id) {
-              max_id = id + 1;
-            }
-          } catch (...) {
-          }
-        }
+      uint64_t id = ExtractFileId(filename);
+      if (id >= max_id) {
+        max_id = id + 1;
       }
     }
   }
@@ -77,10 +106,6 @@ bool StorageEngine::Delete(const std::string &key) {
 
   if (!active_memtable_->Delete(key)) {
     return false;
-  }
-
-  if (active_memtable_->ApproximateMemoryUsage() >= write_buffer_size_) {
-    FlushMemTableInternal();
   }
 
   return true;
@@ -176,6 +201,87 @@ void StorageEngine::FlushMemTableInternal() {
 
   // Step 7: Create a fresh active_memtable with the truncated WAL log file
   active_memtable_ = std::make_unique<MemTable>(wal_path_);
+
+  // Step 8: Check if auto-compaction threshold is reached
+  MaybeTriggerCompactionInternal();
+}
+
+void StorageEngine::MaybeTriggerCompaction() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  MaybeTriggerCompactionInternal();
+}
+
+void StorageEngine::MaybeTriggerCompactionInternal() {
+  if (sstables_.size() >= compaction_threshold_) {
+    TriggerCompactionInternal();
+  }
+}
+
+bool StorageEngine::TriggerCompaction() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return TriggerCompactionInternal();
+}
+
+bool StorageEngine::TriggerCompactionInternal() {
+  if (sstables_.size() < compaction_threshold_) {
+    return true;
+  }
+
+  std::vector<CompactorInput> inputs;
+  std::vector<std::string> old_files;
+  std::vector<uint64_t> old_file_ids;
+
+  inputs.reserve(sstables_.size());
+  old_files.reserve(sstables_.size());
+  old_file_ids.reserve(sstables_.size());
+
+  for (size_t i = 0; i < sstables_.size(); ++i) {
+    const auto &reader = sstables_[i];
+    std::string fpath = reader->filepath();
+    uint64_t fid = ExtractFileId(fpath);
+    if (fid == 0) {
+      fid = sstables_.size() - i;
+    }
+    old_files.push_back(fpath);
+    old_file_ids.push_back(fid);
+
+    auto iterator = std::make_shared<SSTableIterator>(fpath);
+    inputs.push_back(CompactorInput{fid, iterator});
+  }
+
+  uint64_t new_file_id = sstable_id_counter_++;
+  std::string new_sstable_path;
+  if (db_dir_.empty() || db_dir_ == ".") {
+    new_sstable_path = "sstable_" + std::to_string(new_file_id) + ".sst";
+  } else {
+    new_sstable_path = db_dir_ + "/sstable_" + std::to_string(new_file_id) + ".sst";
+  }
+
+  // Execute k-way merge compaction with tombstone purging
+  if (!Compactor::Compact(inputs, new_sstable_path, 4096, /*purge_tombstones=*/true)) {
+    return false;
+  }
+
+  // Atomically update MANIFEST
+  if (!manifest_->ReplaceSSTables(old_files, new_sstable_path)) {
+    if (!manifest_->ReplaceSSTables(old_file_ids, new_file_id)) {
+      return false;
+    }
+  }
+
+  // Release old readers before removing physical files
+  sstables_.clear();
+
+  for (const auto &old_f : old_files) {
+    std::error_code ec;
+    std::filesystem::remove(old_f, ec);
+  }
+
+  // Mount newly compacted SSTable
+  auto new_reader = std::make_shared<SSTableReader>(new_sstable_path);
+  sstables_.push_back(new_reader);
+
+  return true;
 }
 
 size_t StorageEngine::sstable_count() const {

@@ -257,29 +257,43 @@ bool StorageEngine::TriggerCompactionInternal() {
     new_sstable_path = db_dir_ + "/sstable_" + std::to_string(new_file_id) + ".sst";
   }
 
-  // Execute k-way merge compaction with tombstone purging
+  // Step 1: Execute k-way merge compaction with tombstone purging
   if (!Compactor::Compact(inputs, new_sstable_path, 4096, /*purge_tombstones=*/true)) {
     return false;
   }
 
-  // Atomically update MANIFEST
+  // Step 2: Atomically update MANIFEST log
   if (!manifest_->ReplaceSSTables(old_files, new_sstable_path)) {
     if (!manifest_->ReplaceSSTables(old_file_ids, new_file_id)) {
       return false;
     }
   }
 
-  // Release old readers before removing physical files
-  sstables_.clear();
-
-  for (const auto &old_f : old_files) {
-    std::error_code ec;
-    std::filesystem::remove(old_f, ec);
+  // Step 3: Instantiate reader for newly compacted SSTable
+  std::shared_ptr<SSTableReader> new_reader;
+  try {
+    new_reader = std::make_shared<SSTableReader>(new_sstable_path);
+  } catch (const std::exception &e) {
+    std::cerr << "Warning: Failed to open newly compacted SSTable " << new_sstable_path
+              << ": " << e.what() << std::endl;
+    return false;
   }
 
-  // Mount newly compacted SSTable
-  auto new_reader = std::make_shared<SSTableReader>(new_sstable_path);
+  // Step 4: Unpin all active iterators and old SSTable readers to close file descriptors
+  inputs.clear();
+  sstables_.clear();
+
+  // Step 5: Update active in-memory SSTable collection with newly compacted reader
   sstables_.push_back(new_reader);
+
+  // Step 6: Physically delete obsolete SSTable files from disk
+  for (const auto &old_f : old_files) {
+    std::error_code ec;
+    if (!std::filesystem::remove(old_f, ec) && ec) {
+      std::cerr << "Warning: Failed to delete obsolete SSTable " << old_f
+                << ": " << ec.message() << std::endl;
+    }
+  }
 
   return true;
 }

@@ -92,6 +92,10 @@ target_link_libraries(integration_engine_sstable PRIVATE lsm_core)
 add_executable(integration_engine_recovery tests/integration/engine_recovery_test.cpp)
 target_link_libraries(integration_engine_recovery PRIVATE lsm_core)
 
+add_executable(integration_engine_compaction tests/integration/engine_compaction_test.cpp)
+target_link_libraries(integration_engine_compaction PRIVATE lsm_core)
+add_custom_target(Integration_EngineCompaction DEPENDS integration_engine_compaction)
+
 # CTest setup
 enable_testing()
 
@@ -110,6 +114,8 @@ add_test(NAME Unit_Manifest COMMAND manifest_test)
 add_test(NAME Integration_MemTableWAL COMMAND memtable_wal_integration_test)
 add_test(NAME Integration_EngineSSTable COMMAND integration_engine_sstable)
 add_test(NAME Integration_EngineRecovery COMMAND integration_engine_recovery)
+add_test(NAME Integration_EngineCompaction COMMAND integration_engine_compaction)
+
 
 
 

@@ -45,6 +45,9 @@ public:
   bool TriggerCompaction();
   void MaybeTriggerCompaction();
 
+  // Unified sorted range scan across MemTable and on-disk SSTables
+  std::unique_ptr<class DBIterator> NewIterator(const std::string &start_key = "", const std::string &end_key = "") const;
+
   // Metadata & inspection accessors
   size_t sstable_count() const;
   std::vector<std::shared_ptr<SSTableReader>> sstables() const;

@@ -27,6 +27,7 @@ add_library(lsm_core STATIC
     src/core/manifest.cpp
     src/core/engine.cpp
     src/core/bloom_filter.cpp
+    src/core/db_iterator.cpp
 )
 
 target_include_directories(lsm_core PUBLIC
@@ -46,6 +47,7 @@ add_executable(lsm_db
     src/core/manifest.cpp
     src/core/engine.cpp
     src/core/bloom_filter.cpp
+    src/core/db_iterator.cpp
 )
 target_include_directories(lsm_db PRIVATE src/core)
 target_link_libraries(lsm_db PRIVATE lsm_core Threads::Threads)
@@ -82,6 +84,10 @@ add_executable(manifest_test tests/unit/manifest_test.cpp)
 target_link_libraries(manifest_test PRIVATE lsm_core)
 add_custom_target(unit_manifest DEPENDS manifest_test)
 
+add_executable(db_iterator_test tests/unit/db_iterator_test.cpp)
+target_link_libraries(db_iterator_test PRIVATE lsm_core)
+add_custom_target(unit_db_iterator DEPENDS db_iterator_test)
+
 # Integration Test Executables
 add_executable(memtable_wal_integration_test tests/integration/memtable_wal_integration_test.cpp)
 target_link_libraries(memtable_wal_integration_test PRIVATE lsm_core)
@@ -109,12 +115,14 @@ add_test(NAME Unit_SSTableIterator COMMAND sstable_iterator_test)
 add_test(NAME Unit_BloomFilter COMMAND unit_bloom_filter)
 add_test(NAME Unit_Compactor COMMAND compactor_test)
 add_test(NAME Unit_Manifest COMMAND manifest_test)
+add_test(NAME Unit_DBIterator COMMAND db_iterator_test)
 
 # Integration tests
 add_test(NAME Integration_MemTableWAL COMMAND memtable_wal_integration_test)
 add_test(NAME Integration_EngineSSTable COMMAND integration_engine_sstable)
 add_test(NAME Integration_EngineRecovery COMMAND integration_engine_recovery)
 add_test(NAME Integration_EngineCompaction COMMAND integration_engine_compaction)
+
 
 
 

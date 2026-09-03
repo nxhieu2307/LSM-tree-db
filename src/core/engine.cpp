@@ -1,5 +1,6 @@
 #include "engine.hpp"
 #include "compactor.hpp"
+#include "db_iterator.hpp"
 #include "sstable_builder.hpp"
 #include "sstable_iterator.hpp"
 #include <filesystem>
@@ -306,6 +307,37 @@ size_t StorageEngine::sstable_count() const {
 std::vector<std::shared_ptr<SSTableReader>> StorageEngine::sstables() const {
   std::lock_guard<std::mutex> lock(mutex_);
   return sstables_;
+}
+
+std::unique_ptr<DBIterator> StorageEngine::NewIterator(
+    const std::string &start_key,
+    const std::string &end_key) const {
+  std::lock_guard<std::mutex> lock(mutex_);
+
+  std::shared_ptr<MemTable::Iterator> active_iter = nullptr;
+  if (active_memtable_) {
+    active_iter = active_memtable_->NewIterator();
+  }
+
+  std::shared_ptr<MemTable::Iterator> imm_iter = nullptr;
+  if (immutable_memtable_) {
+    imm_iter = immutable_memtable_->NewIterator();
+  }
+
+  std::vector<CompactorInput> sst_inputs;
+  sst_inputs.reserve(sstables_.size());
+  for (size_t i = 0; i < sstables_.size(); ++i) {
+    const auto &reader = sstables_[i];
+    std::string fpath = reader->filepath();
+    uint64_t fid = ExtractFileId(fpath);
+    if (fid == 0) {
+      fid = sstables_.size() - i;
+    }
+    auto it = std::make_shared<SSTableIterator>(fpath);
+    sst_inputs.push_back(CompactorInput{fid, it});
+  }
+
+  return std::make_unique<DBIterator>(active_iter, imm_iter, sst_inputs, start_key, end_key);
 }
 
 } // namespace lsm

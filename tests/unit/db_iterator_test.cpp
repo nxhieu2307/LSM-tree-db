@@ -197,6 +197,139 @@ void test_db_iterator_storage_engine_integration() {
   std::filesystem::remove_all(db_dir, ec);
 }
 
+// Test 5: StorageEngine::Scan range bounds, limits, tombstones, and multi-SSTable overrides
+void test_storage_engine_scan() {
+  const std::string db_dir = "test_engine_scan_dir";
+  const std::string wal_path = db_dir + "/wal.log";
+  std::error_code ec;
+  std::filesystem::remove_all(db_dir, ec);
+  std::filesystem::create_directories(db_dir, ec);
+
+  {
+    StorageEngine engine(4096, wal_path, db_dir);
+
+    // Level 1: SSTable 1
+    assert(engine.Put("k01", "v01_old"));
+    assert(engine.Put("k02", "v02_old"));
+    assert(engine.Put("k03", "v03_old"));
+    assert(engine.Put("k04", "v04_old"));
+    engine.FlushMemTable();
+
+    // Level 2: SSTable 2
+    assert(engine.Put("k02", "v02_updated"));
+    assert(engine.Put("k03", "v03_to_delete"));
+    assert(engine.Put("k05", "v05_sst2"));
+    engine.FlushMemTable();
+
+    // Active MemTable
+    assert(engine.Delete("k03")); // Tombstone over k03
+    assert(engine.Put("k06", "v06_mem"));
+    assert(engine.Put("k07", "v07_mem"));
+
+    // 1. Full scan (all live keys)
+    auto full_res = engine.Scan("", "");
+    assert(full_res.size() == 6);
+    assert(full_res[0].first == "k01" && full_res[0].second == "v01_old");
+    assert(full_res[1].first == "k02" && full_res[1].second == "v02_updated");
+    assert(full_res[2].first == "k04" && full_res[2].second == "v04_old");
+    assert(full_res[3].first == "k05" && full_res[3].second == "v05_sst2");
+    assert(full_res[4].first == "k06" && full_res[4].second == "v06_mem");
+    assert(full_res[5].first == "k07" && full_res[5].second == "v07_mem");
+
+    // 2. Sub-range scan ["k02", "k05"]
+    auto sub_res = engine.Scan("k02", "k05");
+    assert(sub_res.size() == 3);
+    assert(sub_res[0].first == "k02" && sub_res[0].second == "v02_updated");
+    assert(sub_res[1].first == "k04" && sub_res[1].second == "v04_old");
+    assert(sub_res[2].first == "k05" && sub_res[2].second == "v05_sst2");
+
+    // 3. Sub-range scan with limit = 2
+    auto limit_res = engine.Scan("k01", "k07", 2);
+    assert(limit_res.size() == 2);
+    assert(limit_res[0].first == "k01" && limit_res[0].second == "v01_old");
+    assert(limit_res[1].first == "k02" && limit_res[1].second == "v02_updated");
+
+    // 4. Non-existent range (out of bounds)
+    auto empty_res = engine.Scan("k90", "k99");
+    assert(empty_res.empty());
+
+    // 5. Inverted range (start > end)
+    auto inv_res = engine.Scan("k05", "k02");
+    assert(inv_res.empty());
+  }
+
+  std::filesystem::remove_all(db_dir, ec);
+}
+
+// Test 6: StorageEngine::PrefixScan prefix filtering, multi-version overrides, limits, and tombstones
+void test_storage_engine_prefix_scan() {
+  const std::string db_dir = "test_engine_prefix_dir";
+  const std::string wal_path = db_dir + "/wal.log";
+  std::error_code ec;
+  std::filesystem::remove_all(db_dir, ec);
+  std::filesystem::create_directories(db_dir, ec);
+
+  {
+    StorageEngine engine(4096, wal_path, db_dir);
+
+    // Populate keys with various prefixes
+    // SSTable 1:
+    assert(engine.Put("user:100", "Alice"));
+    assert(engine.Put("user:101", "Bob_old"));
+    assert(engine.Put("user:102", "Charlie"));
+    assert(engine.Put("order:500", "Order_1"));
+    engine.FlushMemTable();
+
+    // SSTable 2:
+    assert(engine.Put("user:101", "Bob_new")); // Updated
+    assert(engine.Put("user:102", "Charlie_del"));
+    assert(engine.Put("product:001", "Widget"));
+    engine.FlushMemTable();
+
+    // MemTable:
+    assert(engine.Delete("user:102")); // Deleted
+    assert(engine.Put("user:103", "David"));
+    assert(engine.Put("user:104", "Eve"));
+    assert(engine.Put("order:501", "Order_2"));
+
+    // 1. Prefix scan "user:" (unlimited)
+    // Expected: user:100, user:101 (Bob_new), user:103, user:104. (user:102 suppressed)
+    auto user_res = engine.PrefixScan("user:");
+    assert(user_res.size() == 4);
+    assert(user_res[0].first == "user:100" && user_res[0].second == "Alice");
+    assert(user_res[1].first == "user:101" && user_res[1].second == "Bob_new");
+    assert(user_res[2].first == "user:103" && user_res[2].second == "David");
+    assert(user_res[3].first == "user:104" && user_res[3].second == "Eve");
+
+    // 2. Prefix scan "user:" with limit = 2
+    auto user_lim_res = engine.PrefixScan("user:", 2);
+    assert(user_lim_res.size() == 2);
+    assert(user_lim_res[0].first == "user:100" && user_lim_res[0].second == "Alice");
+    assert(user_lim_res[1].first == "user:101" && user_lim_res[1].second == "Bob_new");
+
+    // 3. Prefix scan "order:"
+    auto order_res = engine.PrefixScan("order:");
+    assert(order_res.size() == 2);
+    assert(order_res[0].first == "order:500" && order_res[0].second == "Order_1");
+    assert(order_res[1].first == "order:501" && order_res[1].second == "Order_2");
+
+    // 4. Prefix scan "product:"
+    auto prod_res = engine.PrefixScan("product:");
+    assert(prod_res.size() == 1);
+    assert(prod_res[0].first == "product:001" && prod_res[0].second == "Widget");
+
+    // 5. Non-existent prefix before existing keys ("account:")
+    auto non_exist_res1 = engine.PrefixScan("account:");
+    assert(non_exist_res1.empty());
+
+    // 6. Non-existent prefix after existing keys ("zebra:")
+    auto non_exist_res2 = engine.PrefixScan("zebra:");
+    assert(non_exist_res2.empty());
+  }
+
+  std::filesystem::remove_all(db_dir, ec);
+}
+
 int main() {
   std::cout << "==================================================" << std::endl;
   std::cout << "  RUNNING DB_ITERATOR UNIT & INTEGRATION TESTS    " << std::endl;
@@ -206,6 +339,8 @@ int main() {
   run_test("DBIterator Range Bounds", test_db_iterator_range_bounds);
   run_test("DBIterator Seek", test_db_iterator_seek);
   run_test("DBIterator StorageEngine Integration", test_db_iterator_storage_engine_integration);
+  run_test("StorageEngine Scan Range & Limit", test_storage_engine_scan);
+  run_test("StorageEngine PrefixScan", test_storage_engine_prefix_scan);
 
   std::cout << "ALL DB_ITERATOR TESTS PASSED SUCCESSFULLY!" << std::endl;
   return 0;

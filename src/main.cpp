@@ -33,13 +33,17 @@ int main() {
   std::cout << "=================================================="
             << std::endl;
   std::cout << "Commands available:" << std::endl;
-  std::cout << "  PUT <key> <val>  : Insert or update a key-value pair"
+  std::cout << "  PUT <key> <val>           : Insert or update a key-value pair"
             << std::endl;
-  std::cout << "  GET <key>        : Retrieve value for a given key"
+  std::cout << "  GET <key>                 : Retrieve value for a given key"
             << std::endl;
-  std::cout << "  DEL <key>        : Delete a key (tombstone write)"
+  std::cout << "  DEL <key>                 : Delete a key (tombstone write)"
             << std::endl;
-  std::cout << "  EXIT             : Exit the database CLI shell" << std::endl;
+  std::cout << "  SCAN <start> <end> [lim]  : Scan range [start, end] up to limit"
+            << std::endl;
+  std::cout << "  PREFIX_SCAN <pfx> [lim]   : Scan by prefix up to limit"
+            << std::endl;
+  std::cout << "  EXIT                      : Exit the database CLI shell" << std::endl;
   std::cout << "=================================================="
             << std::endl;
 
@@ -119,6 +123,27 @@ int main() {
         std::cout << "OK" << std::endl;
       } else {
         std::cout << "(error) Failed to execute DEL operation" << std::endl;
+      }
+    } else if (upper_cmd == "SCAN") {
+      std::string start_key;
+      std::string end_key;
+      ss >> start_key >> end_key;
+      size_t limit = 0;
+      ss >> limit;
+      auto results = db.Scan(start_key, end_key, limit);
+      std::cout << "(" << results.size() << " items)" << std::endl;
+      for (const auto &pair : results) {
+        std::cout << pair.first << " => " << pair.second << std::endl;
+      }
+    } else if (upper_cmd == "PREFIX_SCAN" || upper_cmd == "PREFIXSCAN") {
+      std::string prefix;
+      ss >> prefix;
+      size_t limit = 0;
+      ss >> limit;
+      auto results = db.PrefixScan(prefix, limit);
+      std::cout << "(" << results.size() << " items)" << std::endl;
+      for (const auto &pair : results) {
+        std::cout << pair.first << " => " << pair.second << std::endl;
       }
     } else {
       std::cout << "(error) Unknown command: " << cmd << std::endl;

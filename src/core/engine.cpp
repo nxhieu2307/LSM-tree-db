@@ -337,7 +337,58 @@ std::unique_ptr<DBIterator> StorageEngine::NewIterator(
     sst_inputs.push_back(CompactorInput{fid, it});
   }
 
-  return std::make_unique<DBIterator>(active_iter, imm_iter, sst_inputs, start_key, end_key);
+  auto db_iter = std::make_unique<DBIterator>(active_iter, imm_iter, sst_inputs, start_key, end_key);
+  if (!start_key.empty()) {
+    db_iter->Seek(start_key);
+  } else {
+    db_iter->SeekToFirst();
+  }
+  return db_iter;
+}
+
+std::vector<KVPair> StorageEngine::Scan(
+    const std::string &start_key,
+    const std::string &end_key,
+    size_t limit) const {
+  std::vector<KVPair> results;
+  auto it = NewIterator(start_key, end_key);
+  if (!it) {
+    return results;
+  }
+
+  while (it->Valid()) {
+    if (limit > 0 && results.size() >= limit) {
+      break;
+    }
+    results.emplace_back(it->Key(), it->Value());
+    it->Next();
+  }
+
+  return results;
+}
+
+std::vector<KVPair> StorageEngine::PrefixScan(
+    const std::string &prefix,
+    size_t limit) const {
+  std::vector<KVPair> results;
+  auto it = NewIterator(prefix, "");
+  if (!it) {
+    return results;
+  }
+
+  while (it->Valid()) {
+    if (limit > 0 && results.size() >= limit) {
+      break;
+    }
+    const std::string key = it->Key();
+    if (key.rfind(prefix, 0) != 0) {
+      break;
+    }
+    results.emplace_back(key, it->Value());
+    it->Next();
+  }
+
+  return results;
 }
 
 } // namespace lsm

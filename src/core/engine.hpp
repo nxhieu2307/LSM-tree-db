@@ -9,9 +9,14 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace lsm {
+
+using KVPair = std::pair<std::string, std::string>;
+
+class DBIterator;
 
 class StorageEngine {
 public:
@@ -45,8 +50,24 @@ public:
   bool TriggerCompaction();
   void MaybeTriggerCompaction();
 
-  // Unified sorted range scan across MemTable and on-disk SSTables
-  std::unique_ptr<class DBIterator> NewIterator(const std::string &start_key = "", const std::string &end_key = "") const;
+  // Returns an active iterator positioned at start_key (or first key if empty).
+  std::unique_ptr<DBIterator> NewIterator(
+      const std::string &start_key = "",
+      const std::string &end_key = ""
+  ) const;
+
+  // Collects key-value pairs in the range [start_key, end_key] up to limit (0 = unlimited).
+  std::vector<KVPair> Scan(
+      const std::string &start_key,
+      const std::string &end_key,
+      size_t limit = 0
+  ) const;
+
+  // Collects all key-value pairs matching the given prefix up to limit (0 = unlimited).
+  std::vector<KVPair> PrefixScan(
+      const std::string &prefix,
+      size_t limit = 0
+  ) const;
 
   // Metadata & inspection accessors
   size_t sstable_count() const;

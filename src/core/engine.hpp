@@ -50,6 +50,9 @@ public:
   bool TriggerCompaction();
   void MaybeTriggerCompaction();
 
+  // Explicitly close engine and flush active memtable to disk
+  void Close();
+
   // Returns an active iterator positioned at start_key (or first key if empty).
   std::unique_ptr<DBIterator> NewIterator(
       const std::string &start_key = "",

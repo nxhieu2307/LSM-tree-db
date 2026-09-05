@@ -51,6 +51,11 @@ StorageEngine::StorageEngine(size_t write_buffer_size,
                              size_t compaction_threshold)
     : write_buffer_size_(write_buffer_size), wal_path_(wal_path),
       db_dir_(db_dir), compaction_threshold_(compaction_threshold) {
+  if (!db_dir_.empty() && db_dir_ != ".") {
+    std::error_code ec;
+    std::filesystem::create_directories(db_dir_, ec);
+  }
+
   std::string manifest_path = (db_dir_.empty() || db_dir_ == ".")
                                   ? "MANIFEST"
                                   : db_dir_ + "/MANIFEST";
@@ -79,6 +84,13 @@ StorageEngine::StorageEngine(size_t write_buffer_size,
 }
 
 StorageEngine::~StorageEngine() = default;
+
+void StorageEngine::Close() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (active_memtable_ && !active_memtable_->Empty()) {
+    FlushMemTableInternal();
+  }
+}
 
 std::string StorageEngine::NextSSTablePath() {
   uint64_t id = sstable_id_counter_++;

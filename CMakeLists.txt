@@ -13,6 +13,8 @@ else()
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 find_package(Threads REQUIRED)
 
 # Core library
@@ -29,9 +31,37 @@ add_library(lsm_core STATIC
     src/core/bloom_filter.cpp
     src/core/db_iterator.cpp
 )
+set_target_properties(lsm_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(lsm_core PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/core>
+)
+
+# Python Bindings (pybind11)
+include(FetchContent)
+FetchContent_Declare(
+    pybind11
+    GIT_REPOSITORY https://github.com/pybind/pybind11.git
+    GIT_TAG v2.12.0
+)
+FetchContent_MakeAvailable(pybind11)
+
+pybind11_add_module(pylsm src/bindings/python_bindings.cpp)
+target_include_directories(pylsm PRIVATE
+    "$ENV{HOME}/.local/include"
+    "$ENV{HOME}/.local/include/python3.14"
+    "$ENV{HOME}/.local/include/x86_64-linux-gnu/python3.14"
+    "${CMAKE_CURRENT_SOURCE_DIR}/build/py-dev/usr/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/build/py-dev/usr/include/python3.14"
+    "${CMAKE_CURRENT_SOURCE_DIR}/build/py-dev/usr/include/x86_64-linux-gnu/python3.14"
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/core
+)
+target_link_libraries(pylsm PRIVATE lsm_core)
+set_target_properties(pylsm PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
 # CLI Binary Executable
@@ -127,6 +157,11 @@ add_test(NAME Integration_EngineSSTable COMMAND integration_engine_sstable)
 add_test(NAME Integration_EngineRecovery COMMAND integration_engine_recovery)
 add_test(NAME Integration_EngineCompaction COMMAND integration_engine_compaction)
 add_test(NAME Integration_EngineScan COMMAND integration_engine_scan)
+
+# Python bindings test
+add_test(NAME Python_PyLSM COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_pylsm.py)
+set_tests_properties(Python_PyLSM PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}")
+
 
 
 

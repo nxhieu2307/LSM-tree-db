@@ -158,9 +158,13 @@ add_test(NAME Integration_EngineRecovery COMMAND integration_engine_recovery)
 add_test(NAME Integration_EngineCompaction COMMAND integration_engine_compaction)
 add_test(NAME Integration_EngineScan COMMAND integration_engine_scan)
 
-# Python bindings test
+# Python bindings & LTM tests
 add_test(NAME Python_PyLSM COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_pylsm.py)
-set_tests_properties(Python_PyLSM PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}")
+set_tests_properties(Python_PyLSM PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}:${CMAKE_CURRENT_SOURCE_DIR}/python")
+
+add_test(NAME Python_LTMStore COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_ltm_store.py)
+set_tests_properties(Python_LTMStore PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}:${CMAKE_CURRENT_SOURCE_DIR}/python")
+
 
 
 

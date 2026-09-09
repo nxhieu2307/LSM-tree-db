@@ -45,3 +45,10 @@ CMAKE_GUIDE.md
 notes/
 dev_notes/
 *.report.md
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/

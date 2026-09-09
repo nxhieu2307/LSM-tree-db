@@ -10,6 +10,10 @@ class MemoryStore:
     def __init__(self, db_path: str, memtable_capacity: int = 4 * 1024 * 1024):
         self._engine = pylsm.StorageEngine(db_path, memtable_capacity)
 
+    @property
+    def engine(self) -> pylsm.StorageEngine:
+        return self._engine
+
     def put_chunk(self, chunk: MemoryChunk) -> None:
         key = f"doc:{chunk.doc_id}:{chunk.chunk_id:06d}"
         payload = json.dumps(chunk.to_dict())

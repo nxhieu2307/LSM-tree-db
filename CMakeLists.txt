@@ -168,6 +168,9 @@ set_tests_properties(Python_LTMStore PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_
 add_test(NAME Python_ChatHistory COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_chat_history.py)
 set_tests_properties(Python_ChatHistory PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}:${CMAKE_CURRENT_SOURCE_DIR}/python")
 
+add_test(NAME Python_VectorIndex COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/python/test_vector_index.py)
+set_tests_properties(Python_VectorIndex PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}:${CMAKE_CURRENT_SOURCE_DIR}/python")
+
 
 
 
